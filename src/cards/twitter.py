@@ -1,13 +1,14 @@
 #
 # Everything Twitter.
 #
+import os
 import re
 import tweepy
 
 from src.util import pretty_datetime, url_to_data_uri
 
 # A bearer token is sufficient - we only need read-only access to public info
-TWITTER_API_BEARER_TOKEN = 'AAAAAAAAAAAAAAA...'
+TWITTER_API_BEARER_TOKEN = os.environ['TWITTER_BEARER_TOKEN']
 
 def create_card_for_misc(meta: dict) -> str:
     """Handle non-tweets (by not presenting anything)"""

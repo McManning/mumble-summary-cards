@@ -1,10 +1,11 @@
+import os
 import requests
 import random
 from datetime import datetime, timedelta
 
 from src.util import parse_isoduration, pretty_datetime
 
-YOUTUBE_DATA_API_KEY = 'AIza...'
+YOUTUBE_DATA_API_KEY = os.environ['YOUTUBE_API_KEY']
 
 def create_youtube_card(meta: dict) -> str:
     return '''
