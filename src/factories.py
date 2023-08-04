@@ -3,10 +3,10 @@ import requests
 import re
 import metadata_parser
 
-from app.util import first_or_default, url_to_data_uri
-from app.cards.steam import create_steam_card
-from app.cards.twitter import create_twitter_card
-from app.cards.youtube import create_youtube_card
+from .util import first_or_default, url_to_data_uri
+from .cards.steam import create_steam_card
+from .cards.twitter import create_twitter_card
+from .cards.youtube import create_youtube_card
 
 def meta_from_url(url: str) -> dict:
     """Extract metadata and thumbnails from a URL

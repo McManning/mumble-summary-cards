@@ -63,7 +63,7 @@ class ServerCallback(Murmur.ServerCallback):
 def get_murmur_meta():
     return meta
 
-def murmur_connect(logger, blocking: bool):
+def murmur_connect(logger):
     """
     Returns:
         Mumble Ice runtime

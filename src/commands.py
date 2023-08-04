@@ -4,7 +4,7 @@ import functools
 import random
 import requests
 import Murmur
-from src.factories import create_card
+from .factories import create_card
 
 command_subscribers = []
 

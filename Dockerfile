@@ -25,4 +25,4 @@ RUN apk add --no-cache \
 COPY . /app
 
 EXPOSE 5000
-CMD ["python", "entry.py"]
+CMD ["python", "/app/entry.py"]
