@@ -1,15 +1,15 @@
 
 import re
 import functools
-import random
 import requests
-import Murmur
+import MumbleServer
 from .factories import create_card
 
 command_subscribers = []
 
-class TextMessage(Murmur.TextMessage):
-    """Wrapper for Murmur TextMessages to add additional message context
+
+class TextMessage(MumbleServer.TextMessage):
+    """Wrapper for Mumble TextMessages to add additional message context
 
     Args:
         server:     Server this message is sent to.
@@ -20,6 +20,7 @@ class TextMessage(Murmur.TextMessage):
         text:       The contents of the message.
         match:      Re match groups if the message was mapped to a command
     """
+
     def __init__(
         self,
         user=None,
@@ -35,40 +36,43 @@ class TextMessage(Murmur.TextMessage):
         self.server = server
         self.match = match
 
+
 class TextResponse:
     """Prepared message to an individual, channel, or server
 
     Args:
         message:    the message to send (text or HTML)
-        server:     the target Murmur server. Defaults to all servers
+        server:     the target Mumble server. Defaults to all servers
         channel:    the target channel for the message. If unspecified,
                     all channels on `server` will receive the message.
         user:       the target user for a direct message. Will be ignored
                     if `channel` is specified.
     """
+
     def __init__(
         self,
         message: str,
-        server: Murmur.Server = None,
-        channel: Murmur.Channel = None,
-        user: Murmur.User = None
+        server: MumbleServer.Server = None,
+        channel: MumbleServer.Channel = None,
+        user: MumbleServer.User = None
     ):
         self.message = message
         self.server = server
         self.channel = channel
         self.user = user
 
+
 def publish(
-    server: Murmur.Server,
-    user: Murmur.User,
-    msg: Murmur.TextMessage
+    server: MumbleServer.Server,
+    user: MumbleServer.User,
+    msg: MumbleServer.TextMessage
 ):
     """Publish a text message to all commands matching the message pattern
 
     Args:
-        server (Murmur.Server):     Originating server instance
-        user (Murmur.User):         User that sent the message
-        msg (Murmur.TextMessage):   The message that was sent
+        server (MumbleServer.Server):     Originating server instance
+        user (MumbleServer.User):         User that sent the message
+        msg (MumbleServer.TextMessage):   The message that was sent
     """
     # Wrap original message in a more context aware TextMessage
     wrapped = TextMessage(
@@ -85,6 +89,7 @@ def publish(
         if match:
             command['func'](wrapped, **match.groupdict())
             return
+
 
 def subscribe(
     pattern: str,
@@ -103,6 +108,7 @@ def subscribe(
         'func': func
     })
 
+
 def command(pattern: str, usage: str = None):
     """Decorator for command subscriber methods"""
     def decorator(func):
@@ -114,11 +120,12 @@ def command(pattern: str, usage: str = None):
         return wrapper
     return decorator
 
+
 @command(r'(?P<url>https?://[^\s]+)\"')
 def any_url(msg: TextMessage, url: str):
     """Generate a card for any URL
 
-    Note the regex has a trailing quote match because URLs in murmur will
+    Note the regex has a trailing quote match because URLs in mumble will
     come in as `<a href="...">...</a>`.
 
     Args:

@@ -1,6 +1,11 @@
+// Copyright The Mumble Developers. All rights reserved.
+// Use of this source code is governed by a BSD-style license
+// that can be found in the LICENSE file at the root of the
+// Mumble source tree or at <https://www.mumble.info/LICENSE>.
+
 /**
  *
- * Information and control of the murmur server. Each server has
+ * Information and control of the Mumble server. Each server has
  * one {@link Meta} interface that controls global information, and
  * each virtual server has a {@link Server} interface.
  *
@@ -8,7 +13,7 @@
 
 #include <Ice/SliceChecksumDict.ice>
 
-module Murmur
+module MumbleServer
 {
 
 	/** A network address in IPv6 format.
@@ -44,8 +49,10 @@ module Murmur
 		int onlinesecs;
 		/** Average transmission rate in bytes per second over the last few seconds. */
 		int bytespersec;
-		/** Client version. Major version in upper 16 bits, followed by 8 bits of minor version and 8 bits of patchlevel. Version 1.2.3 = 0x010203. */
+		/** Legacy client version. */
 		int version;
+		/** New client version. (See https://github.com/mumble-voip/mumble/issues/5827) */
+		long version2;
 		/** Client release. For official releases, this equals the version. For snapshots and git compiles, this will be something else. */
 		string release;
 		/** Client OS. */
@@ -54,7 +61,19 @@ module Murmur
 		string osversion;
 		/** Plugin Identity. This will be the user's unique ID inside the current game. */
 		string identity;
-		/** Plugin context. This is a binary blob identifying the game and team the user is on. */
+		/**
+		   Base64-encoded Plugin context. This is a binary blob identifying the game and team the user is on.
+
+		   The used Base64 alphabet is the one specified in RFC 2045.
+
+		   Before Mumble 1.3.0, this string was not Base64-encoded. This could cause problems for some Ice
+		   implementations, such as the .NET implementation.
+
+		   If you need the exact string that is used by Mumble, you can get it by Base64-decoding this string.
+
+		   If you simply need to detect whether two users are in the same game world, string comparisons will
+		   continue to work as before.
+		 */
 		string context;
 		/** User comment. Shown as tooltip for this user. */
 		string comment;
@@ -98,7 +117,7 @@ module Murmur
 		IntList links;
 		/** Description of channel. Shown as tooltip for this channel. */
 		string description;
-		/** Channel is temporary, and will be removed when the last user leaves it. */
+		/** Channel is temporary, and will be removed when the last user leaves it. Read-only. */
 		bool temporary;
 		/** Position of the channel which is used in Client for sorting. */
 		int position;
@@ -153,6 +172,8 @@ module Murmur
 	const int PermissionRegister = 0x40000;
 	/** Register and unregister users. Only valid on root channel. */
 	const int PermissionRegisterSelf = 0x80000;
+	/** Reset the comment or avatar of a user. Only valid on root channel. */
+	const int ResetUserContent = 0x100000;
 
 
 	/** Access Control List for a channel. ACLs are defined per channel, and can be inherited from parent channels.
@@ -206,7 +227,7 @@ module Murmur
 	sequence<Tree> TreeList;
 
 	enum ChannelInfo { ChannelDescription, ChannelPosition };
-	enum UserInfo { UserName, UserEmail, UserComment, UserHash, UserPassword, UserLastActive };
+	enum UserInfo { UserName, UserEmail, UserComment, UserHash, UserPassword, UserLastActive, UserKDFIterations };
 
 	dictionary<int, User> UserMap;
 	dictionary<int, Channel> ChannelMap;
@@ -243,32 +264,40 @@ module Murmur
 		UserList users;
 	};
 
-	exception MurmurException {};
+	exception ServerException {};
+	/** Thrown if the server encounters an internal error while processing the request */
+	exception InternalErrorException extends ServerException {};
 	/** This is thrown when you specify an invalid session. This may happen if the user has disconnected since your last call to {@link Server.getUsers}. See {@link User.session} */
-	exception InvalidSessionException extends MurmurException {};
+	exception InvalidSessionException extends ServerException {};
 	/** This is thrown when you specify an invalid channel id. This may happen if the channel was removed by another provess. It can also be thrown if you try to add an invalid channel. */
-	exception InvalidChannelException extends MurmurException {};
+	exception InvalidChannelException extends ServerException {};
 	/** This is thrown when you try to do an operation on a server that does not exist. This may happen if someone has removed the server. */
-	exception InvalidServerException extends MurmurException {};
+	exception InvalidServerException extends ServerException {};
 	/** This happens if you try to fetch user or channel state on a stopped server, if you try to stop an already stopped server or start an already started server. */
-	exception ServerBootedException extends MurmurException {};
+	exception ServerBootedException extends ServerException {};
 	/** This is thrown if {@link Server.start} fails, and should generally be the cause for some concern. */
-	exception ServerFailureException extends MurmurException {};
+	exception ServerFailureException extends ServerException {};
 	/** This is thrown when you specify an invalid userid. */
-	exception InvalidUserException extends MurmurException {};
+	exception InvalidUserException extends ServerException {};
 	/** This is thrown when you try to set an invalid texture. */
-	exception InvalidTextureException extends MurmurException {};
+	exception InvalidTextureException extends ServerException {};
 	/** This is thrown when you supply an invalid callback. */
-	exception InvalidCallbackException extends MurmurException {};
+	exception InvalidCallbackException extends ServerException {};
 	/**  This is thrown when you supply the wrong secret in the calling context. */
-	exception InvalidSecretException extends MurmurException {};
-	/** This is thrown when the channel operation would excede the channel nesting limit */
-	exception NestingLimitException extends MurmurException {};
+	exception InvalidSecretException extends ServerException {};
+	/** This is thrown when the channel operation would exceed the channel nesting limit */
+	exception NestingLimitException extends ServerException {};
+	/**  This is thrown when you ask the server to disclose something that should be secret. */
+	exception WriteOnlyException extends ServerException {};
+	/** This is thrown when invalid input data was specified. */
+	exception InvalidInputDataException extends ServerException {};
+	/** This is thrown when the referenced channel listener does not actually exist */
+	exception InvalidListenerException extends ServerException {};
 
 	/** Callback interface for servers. You can supply an implementation of this to receive notification
 	 *  messages from the server.
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
-	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
+	 *  Please note that all callbacks are done asynchronously; the server does not wait for the callback to
 	 *  complete before continuing processing.
 	 *  Note that callbacks are removed when a server is stopped, so you should have a callback for
 	 *  {@link MetaCallback.started} which calls {@link Server.addCallback}.
@@ -317,7 +346,7 @@ module Murmur
 
 	/** Callback interface for context actions. You need to supply one of these for {@link Server.addContext}. 
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
-	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
+	 *  Please note that all callbacks are done asynchronously; the server does not wait for the callback to
 	 *  complete before continuing processing.
 	 */
 	interface ServerContextCallback {
@@ -325,7 +354,7 @@ module Murmur
 		 *  @param action Action to be performed.
 		 *  @param usr User which initiated the action.
 		 *  @param session If nonzero, session of target user.
-		 *  @param channelid If nonzero, session of target channel.
+		 *  @param channelid If not -1, id of target channel.
 		 */
 		idempotent void contextAction(string action, User usr, int session, int channelid);
 	};
@@ -333,31 +362,38 @@ module Murmur
 	/** Callback interface for server authentication. You need to supply one of these for {@link Server.setAuthenticator}.
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
 	 *  Please note that unlike {@link ServerCallback} and {@link ServerContextCallback}, these methods are called
-	 *  synchronously. If the response lags, the entire murmur server will lag.
+	 *  synchronously. If the response lags, the entire server will lag.
 	 *  Also note that, as the method calls are synchronous, making a call to {@link Server} or {@link Meta} will
 	 *  deadlock the server.
 	 */
 	interface ServerAuthenticator {
 		/** Called to authenticate a user. If you do not know the username in question, always return -2 from this
 		 *  method to fall through to normal database authentication.
-		 *  Note that if authentication succeeds, murmur will create a record of the user in it's database, reserving
+		 *  Note that if authentication succeeds, the server will create a record of the user in it's database, reserving
 		 *  the username and id so it cannot be used for normal database authentication.
 		 *  The data in the certificate (name, email addresses etc), as well as the list of signing certificates,
 		 *  should only be trusted if certstrong is true.
 		 *
+		 *  Internally, the server treats usernames as case-insensitive. It is recommended
+		 *  that authenticators do the same. the server checks if a username is in use when
+		 *  a user connects. If the connecting user is registered, the other username is
+		 *  kicked. If the connecting user is not registered, the connecting user is not
+		 *  allowed to join the server.
+		 *
 		 *  @param name Username to authenticate.
 		 *  @param pw Password to authenticate with.
 		 *  @param certificates List of der encoded certificates the user connected with.
-		 *  @param certhash Hash of user certificate, as used by murmur internally when matching.
+		 *  @param certhash Hash of user certificate, as used by the server internally when matching.
 		 *  @param certstrong True if certificate was valid and signed by a trusted CA.
 		 *  @param newname Set this to change the username from the supplied one.
 		 *  @param groups List of groups on the root channel that the user will be added to for the duration of the connection.
-		 *  @return UserID of authenticated user, -1 for authentication failures and -2 for unknown user (fallthrough).
+		 *  @return UserID of authenticated user, -1 for authentication failures, -2 for unknown user (fallthrough),
+		 *          -3 for authentication failures where the data could (temporarily) not be verified.
 		 */
 		idempotent int authenticate(string name, string pw, CertificateList certificates, string certhash, bool certstrong, out string newname, out GroupNameList groups);
 
 		/** Fetch information about a user. This is used to retrieve information like email address, keyhash etc. If you
-		 *  want murmur to take care of this information itself, simply return false to fall through.
+		 *  want the server to take care of this information itself, simply return false to fall through.
 		 *  @param id User id.
 		 *  @param info Information about user. This needs to include at least "name".
 		 *  @return true if information is present, false to fall through.
@@ -378,7 +414,7 @@ module Murmur
 
 		/** Map a user to a custom Texture.
 		 *  @param id User id to map.
-		 *  @return User texture or an empty texture for unknwon users or users without textures.
+		 *  @return User texture or an empty texture for unknown users or users without textures.
 		 */
 		idempotent Texture idToTexture(int id);
 	};
@@ -387,7 +423,7 @@ module Murmur
 	 *  and account updating.
 	 *  You do not need to implement this if all you want is authentication, you only need this if other scripts
 	 *  connected to the same server calls e.g. {@link Server.setTexture}.
-	 *  Almost all of these methods support fall through, meaning murmur should continue the operation against its
+	 *  Almost all of these methods support fall through, meaning the server should continue the operation against its
 	 *  own database.
 	 */
 	interface ServerUpdatingAuthenticator extends ServerAuthenticator {
@@ -399,7 +435,7 @@ module Murmur
 
 		/** Unregister a user.
 		 *  @param id Userid to unregister.
-		 *  @return 1 for successfull unregistration, 0 for unsuccessfull unregistration, -1 to fall through.
+		 *  @return 1 for successful unregistration, 0 for unsuccessful unregistration, -1 to fall through.
 		 */
 		int unregisterUser(int id);
 
@@ -412,14 +448,14 @@ module Murmur
 		/** Set additional information for user registration.
 		 *  @param id Userid of registered user.
 		 *  @param info Information to set about user. This should be merged with existing information.
-		 *  @return 1 for successfull update, 0 for unsuccessfull update, -1 to fall through.
+		 *  @return 1 for successful update, 0 for unsuccessful update, -1 to fall through.
 		 */
 		idempotent int setInfo(int id, UserInfoMap info);
 
 		/** Set texture (now called avatar) of user registration.
 		 *  @param id registrationId of registered user.
 		 *  @param tex New texture.
-		 *  @return 1 for successfull update, 0 for unsuccessfull update, -1 to fall through.
+		 *  @return 1 for successful update, 0 for unsuccessful update, -1 to fall through.
 		 */
 		idempotent int setTexture(int id, Texture tex);
 	};
@@ -439,7 +475,7 @@ module Murmur
 		void start() throws ServerBootedException, ServerFailureException, InvalidSecretException;
 
 		/** Stop server.
-		 * Note: Server will be restarted on Murmur restart unless explicitly disabled
+		 * Note: Server will be restarted on application restart unless explicitly disabled
 		 *       with setConf("boot", false)
 		 */
 		void stop() throws ServerBootedException, InvalidSecretException;
@@ -478,7 +514,7 @@ module Murmur
 		 * @param key Configuration key.
 		 * @return Configuration value. If this is empty, see {@link Meta.getDefaultConf}
 		 */
-		idempotent string getConf(string key) throws InvalidSecretException;
+		idempotent string getConf(string key) throws InvalidSecretException, WriteOnlyException;
 
 		/** Retrieve all configuration items.
 		 * @return All configured values. If a value isn't set here, the value from {@link Meta.getDefaultConf} is used.
@@ -739,12 +775,85 @@ module Murmur
 		 * @return Uptime of the virtual server in seconds
 		 */
 		idempotent int getUptime() throws ServerBootedException, InvalidSecretException;
+
+		/**
+		 * Update the server's certificate information.
+		 *
+		 * Reconfigure the running server's TLS socket with the given
+		 * certificate and private key.
+		 *
+		 * The certificate and and private key must be PEM formatted.
+		 *
+		 * New clients will see the new certificate.
+		 * Existing clients will continue to see the certificate the server
+		 * was using when they connected to it.
+		 *
+		 * This method throws InvalidInputDataException if any of the
+		 * following errors happen:
+		 *  - Unable to decode the PEM certificate and/or private key.
+		 *  - Unable to decrypt the private key with the given passphrase.
+		 *  - The certificate and/or private key do not contain RSA keys.
+		 *  - The certificate is not usable with the given private key.
+		 */
+		 idempotent void updateCertificate(string certificate, string privateKey, string passphrase) throws ServerBootedException, InvalidSecretException, InvalidInputDataException;
+
+		 /**
+		  * Makes the given user start listening to the given channel.
+		  * @param userid The ID of the user
+		  * @param channelid The ID of the channel
+		  */
+		 idempotent void startListening(int userid, int channelid);
+
+		 /**
+		  * Makes the given user stop listening to the given channel.
+		  * @param userid The ID of the user
+		  * @param channelid The ID of the channel
+		  */
+		 idempotent void stopListening(int userid, int channelid);
+
+		 /**
+		  * @param userid The ID of the user
+		  * @param channelid The ID of the channel
+		  * @returns Whether the given user is currently listening to the given channel
+		  */
+		 idempotent bool isListening(int userid, int channelid);
+
+		 /**
+		  * @param userid The ID of the user
+		  * @returns An ID-list of channels the given user is listening to
+		  */
+		 idempotent IntList getListeningChannels(int userid);
+
+		 /**
+		  * @param channelid The ID of the channel
+		  * @returns An ID-list of users listening to the given channel
+		  */
+		 idempotent IntList getListeningUsers(int channelid);
+
+		 /**
+		  * @param channelid The ID of the channel
+		  * @param userid The ID of the user
+		  * @returns The volume adjustment set for a listener of the given user in the given channel
+		  */
+		 idempotent float getListenerVolumeAdjustment(int channelid, int userid);
+
+		 /**
+		  * Sets the volume adjustment set for a listener of the given user in the given channel
+		  * @param channelid The ID of the channel
+		  * @param userid The ID of the user
+		  */
+		 idempotent void setListenerVolumeAdjustment(int channelid, int userid, float volumeAdjustment);
+
+		 /**
+		  * @param receiverUserIDs list of IDs of the users the message shall be sent to
+		  */
+		 idempotent void sendWelcomeMessage(IdList receiverUserIDs);
 	};
 
 	/** Callback interface for Meta. You can supply an implementation of this to receive notifications
 	 *  when servers are stopped or started.
 	 *  If an added callback ever throws an exception or goes away, it will be automatically removed.
-	 *  Please note that all callbacks are done asynchronously; murmur does not wait for the callback to
+	 *  Please note that all callbacks are done asynchronously; the server does not wait for the callback to
 	 *  complete before continuing processing.
 	 *  @see ServerCallback
 	 *  @see Meta.addCallback
@@ -789,7 +898,7 @@ module Murmur
 		 */
 		idempotent ServerList getAllServers() throws InvalidSecretException;
 
-		/** Fetch default configuraion. This returns the configuration items that were set in the configuration file, or
+		/** Fetch default configuration. This returns the configuration items that were set in the configuration file, or
 		 * the built-in default. The individual servers will use these values unless they have been overridden in the
 		 * server specific configuration. The only special case is the port, which defaults to the value defined here +
 		 * the servers ID - 1 (so that virtual server #1 uses the defined port, server #2 uses port+1 etc).
@@ -797,7 +906,7 @@ module Murmur
 		 */
 		idempotent ConfigMap getDefaultConf() throws InvalidSecretException;
 
-		/** Fetch version of Murmur. 
+		/** Fetch version of the server. 
 		 * @param major Major version.
 		 * @param minor Minor version.
 		 * @param patch Patchlevel.
@@ -818,8 +927,8 @@ module Murmur
 		 */
 		void removeCallback(MetaCallback *cb) throws InvalidCallbackException, InvalidSecretException;
 		
-		/** Get murmur uptime.
-		 * @return Uptime of murmur in seconds
+		/** Get the server's uptime.
+		 * @return Uptime of the server in seconds
 		 */
 		idempotent int getUptime();
 

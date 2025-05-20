@@ -16,7 +16,7 @@ Games, workshop files, community content, all generate custom cards with links t
 
 YouTube links will be converted to a video thumbnail with viewers and length information.
 
-**This features requires an API key from a Google Cloud account for access to the YouTube Data API v3.**
+**This features requires an API key from a [Google Cloud account for access to the YouTube Data API v3](https://console.cloud.google.com/apis/credentials).**
 
 ![YouTube card example](./docs/youtube.png)
 
@@ -34,24 +34,22 @@ Wherever possible, it will try to extract OpenGraph and other metadata from URLs
 
 ![GitHub card example](./docs/github.png)
 
-
 ## Installation
 
 Easiest method for installation is done via Docker. Here's a sample docker-compose:
 
 ```yml
 ---
-version: '3'
 services:
   cards:
     image: mcmanning/mumble-summary-cards
     restart: unless-stopped
-    # If you're also installing murmur via compose, include this
+    # If you're also installing mumble via compose, include this
     # dependency to ensure the Ice server is setup first.
     depends_on:
-      - murmur
+      - mumble
     environment:
-      - ICE_HOST=murmur
+      - ICE_HOST=mumble
       - ICE_PORT=6502
       - ICE_SECRET=${ICE_SECRET}
       - YOUTUBE_API_KEY=${YOUTUBE_API_KEY}
@@ -63,9 +61,9 @@ services:
 Add the following envvars before running:
 
 ```ini
-ICE_HOST=<your murmur host instance>
+ICE_HOST=<your mumble host instance>
 ICE_PORT=6502
-ICE_SECRET=<your murmur ice secret>
+ICE_SECRET=<your mumble ice secret>
 YOUTUBE_API_KEY=<your API key, optional>
 TWITTER_BEARER_TOKEN=<your bearer token, optional>
 ```

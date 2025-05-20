@@ -1,4 +1,6 @@
 
+import MumbleServer
+from src.commands import publish
 import os
 import sys
 import unittest
@@ -8,10 +10,8 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(TEST_DIR, os.pardir))
 sys.path.insert(0, PROJECT_DIR)
 
-from src.commands import publish
-import Murmur
 
-class MockServer(Murmur.Server):
+class MockServer(MumbleServer.Server):
     def sendMessageChannel(self, channel, tree, text):
         self.text = text
 
@@ -23,13 +23,15 @@ class MockServer(Murmur.Server):
 
 
 def create_mock_text(text):
-    return Murmur.TextMessage([0], [0], [], text)
+    return MumbleServer.TextMessage([0], [0], [], text)
+
 
 def create_mock_user():
-    user = Murmur.User()
+    user = MumbleServer.User()
     user.name = 'Mock'
 
     return user
+
 
 class CommandsTestCase(unittest.TestCase):
     def setUp(self):
