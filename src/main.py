@@ -2,7 +2,6 @@
 import os
 import logging
 import sys
-from distutils.util import strtobool
 
 # Import isn't used here, but it needs to happen before zeroc-ice
 # is ever imported, otherwise we get segfaults on https requests.
@@ -13,7 +12,7 @@ from src.mumble import mumble_connect  # nopep8
 
 
 def main():
-    debug = strtobool(os.environ.get('DEBUG', '0'))
+    debug = os.environ.get('DEBUG', '0') != '0'
     if os.environ.get('ICE_HOST') is None:
         raise KeyError('Missing required ICE_HOST envvar')
 
