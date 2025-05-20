@@ -8,6 +8,7 @@ from .cards.steam import create_steam_card
 from .cards.twitter import create_twitter_card
 from .cards.youtube import create_youtube_card
 
+
 def meta_from_url(url: str) -> dict:
     """Extract metadata and thumbnails from a URL
     """
@@ -53,9 +54,11 @@ def meta_from_url(url: str) -> dict:
     # We need to check both since the metadata_parser library can't handle it
     res['description'] = first_or_default(page.get_metadatas('description'))
     if not res['description']:
-        res['description'] = first_or_default(page.get_metadatas('Description'), '')
+        res['description'] = first_or_default(
+            page.get_metadatas('Description'), '')
 
     return res
+
 
 def create_card_for_image_url(url: str) -> str:
     """Direct links to images get thumbnailed automatically"""
@@ -63,6 +66,7 @@ def create_card_for_image_url(url: str) -> str:
         url=url,
         thumbnail=url_to_data_uri(url, 300)
     )
+
 
 def create_card_for_video_url(url: str) -> str:
     """Handle direct video links.
@@ -81,8 +85,10 @@ def create_card_for_video_url(url: str) -> str:
     # Otherwise, nah.
     return ''
 
+
 def create_card_for_unhandled_mime_type(mime: str, url: str) -> str:
     return mime
+
 
 def create_card_for_html(url: str) -> str:
     info = meta_from_url(url)
@@ -121,6 +127,7 @@ def create_card_for_html(url: str) -> str:
         title=info['title'],
         description=info['description']
     )
+
 
 def create_card(url: str) -> str:
     # Do a pre-flight request for content info

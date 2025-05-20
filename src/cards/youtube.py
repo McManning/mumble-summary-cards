@@ -5,9 +5,19 @@ from datetime import datetime, timedelta
 
 from src.util import parse_isoduration, pretty_datetime
 
-YOUTUBE_DATA_API_KEY = os.environ['YOUTUBE_API_KEY']
+
+def get_api_key() -> str:
+    if "YOUTUBE_API_KEY" in os.environ:
+        return os.environ['YOUTUBE_API_KEY']
+
+    return None
+
 
 def create_youtube_card(meta: dict) -> str:
+    if get_api_key() is None:
+        raise ValueError(
+            'This feature requires an API key for YouTube Data API v3')
+
     return '''
         <table>
             <tr>
@@ -27,6 +37,7 @@ def create_youtube_card(meta: dict) -> str:
         title=meta['title'],
         description=create_youtube_video_description(meta)
     )
+
 
 def create_youtube_video_description(meta: dict) -> str:
     """
@@ -61,21 +72,22 @@ def create_youtube_video_description(meta: dict) -> str:
         return ''
 
     info = json['items'][0]
-    published_at = datetime.strptime(info['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%S%z")
+    published_at = datetime.strptime(
+        info['snippet']['publishedAt'], "%Y-%m-%dT%H:%M:%S%z")
     duration = info['contentDetails']['duration']
 
     try:
         t = parse_isoduration(duration, as_dict=True)
         td = timedelta(**t)
         duration = td
-    except: # Live videos don't have a valid duration
+    except:  # Live videos don't have a valid duration
         duration = '<b>Live</b>'
 
     views = int(info['statistics']['viewCount'])
     likes = int(info['statistics']['likeCount'])
 
     random.seed(views)
-    dislikes = int(likes * random.random() * 3) # lol
+    dislikes = int(likes * random.random() * 3)  # lol
 
     # We're going to kinda mimic google results here
     return '''

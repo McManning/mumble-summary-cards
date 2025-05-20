@@ -13,19 +13,22 @@ TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.abspath(os.path.join(TEST_DIR, os.pardir))
 sys.path.insert(0, PROJECT_DIR)
 
-from src.factories import create_card
-from tqdm import tqdm
+from src.factories import create_card  # nopep8
+from tqdm import tqdm  # nopep8
+
 
 test_cases = [
 
     # YouTube
-    'https://www.youtube.com/watch?v=HvhvfdrxXWo', # video
-    'https://youtu.be/Mx0NLGcL6pI', # short url
-    'https://www.youtube.com/watch?v=aaaaaaaaaaaaaaaaaaaa', # broken url
-    'https://www.youtube.com/watch?v=5qap5aO4i9A', # live stream
-    'https://www.youtube.com/c/OneyPlays/videos', # profile
-    'https://www.youtube.com/watch?v=DGOp5CRc8PQ&list=PLIGWVDu9gdfT5YANcIDJ3srlhBrcJC76X', # playlisted video
-    'https://www.youtube.com/watch?t=180&v=hklWl7O42do&feature=youtu.be', # query params are swapped
+    'https://www.youtube.com/watch?v=HvhvfdrxXWo',  # video
+    'https://youtu.be/Mx0NLGcL6pI',  # short url
+    'https://www.youtube.com/watch?v=aaaaaaaaaaaaaaaaaaaa',  # broken url
+    'https://www.youtube.com/watch?v=5qap5aO4i9A',  # live stream
+    'https://www.youtube.com/c/OneyPlays/videos',  # profile
+    # playlisted video
+    'https://www.youtube.com/watch?v=DGOp5CRc8PQ&list=PLIGWVDu9gdfT5YANcIDJ3srlhBrcJC76X',
+    # query params are swapped
+    'https://www.youtube.com/watch?t=180&v=hklWl7O42do&feature=youtu.be',
 
     # Vimeo / Misc video platforms
     'https://vimeo.com/638004133',
@@ -36,29 +39,38 @@ test_cases = [
     'https://open.spotify.com/album/43KD7ooLIEkXriTaZA4drI?si=bXqew1YpSXq-V_jISuK-6Q',
 
     # Steam
-    'https://steamcommunity.com/sharedfiles/filedetails/?id=2158809703', # workshop file
-    'https://steamcommunity.com/sharedfiles/filedetails/?id=2795863638', # workshop collection
-    'https://steamcommunity.com/sharedfiles/filedetails/?id=2799779462&searchtext=', # TTS workshop game
-    'https://steamcommunity.com/id/mcmanning/', # profile
-    'https://store.steampowered.com/app/619150/while_True_learn/', # game on sale
-    'https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/', # game that will never release
-    'https://store.steampowered.com/app/1949740/Banana_Shooter/', # free to play
-    'https://store.steampowered.com/app/1288610/Wildcat_Gun_Machine/', # random game
-    'https://store.steampowered.com/app/1426870/Dune_Mechanic__Survive_The_Steampunk_Era/', # long text in release date
-    'https://store.steampowered.com/app/892970/Valheim/', # game that will never leave early access
+    'https://steamcommunity.com/sharedfiles/filedetails/?id=2158809703',  # workshop file
+    # workshop collection
+    'https://steamcommunity.com/sharedfiles/filedetails/?id=2795863638',
+    # TTS workshop game
+    'https://steamcommunity.com/sharedfiles/filedetails/?id=2799779462&searchtext=',
+    'https://steamcommunity.com/id/mcmanning/',  # profile
+    'https://store.steampowered.com/app/619150/while_True_learn/',  # game on sale
+    # game that will never release
+    'https://store.steampowered.com/app/1030300/Hollow_Knight_Silksong/',
+    'https://store.steampowered.com/app/1949740/Banana_Shooter/',  # free to play
+    'https://store.steampowered.com/app/1288610/Wildcat_Gun_Machine/',  # random game
+    # long text in release date
+    'https://store.steampowered.com/app/1426870/Dune_Mechanic__Survive_The_Steampunk_Era/',
+    # game that will never leave early access
+    'https://store.steampowered.com/app/892970/Valheim/',
 
     # Twitter
-    'https://twitter.com/SatisfactoryAF/status/1520043080950427649', # text post
-    'https://twitter.com/deangloster/status/1516998004082761729', # reply with image
-    'https://twitter.com/SatisfactoryAF', # profile
-    'https://twitter.com/WoolieWoolz/status/1521220815454412800', # Tweet with a YT video embed
-    'https://twitter.com/WindybeardGames/status/1521210934248755203', # Tweet with a steam store embed
-    'https://twitter.com/FoundInGameMags/status/1521198879294828550?s=20', # Tweet with 2 images
-    'https://twitter.com/80Level/status/1521074521318567938', # Tweet with 3 images
-    'https://twitter.com/80Level/status/1521051872051703810', # Another with 3 images
-    'https://twitter.com/PatStaresAt/status/1521200949259227137', # Tweet quoting another tweet
-    'https://twitter.com/KFILE/status/1516945903327891460', # Tweet with video
-    'https://twitter.com/PhantomTheft/status/1521030364164243456', # Spam tweet
+    'https://twitter.com/SatisfactoryAF/status/1520043080950427649',  # text post
+    'https://twitter.com/deangloster/status/1516998004082761729',  # reply with image
+    'https://twitter.com/SatisfactoryAF',  # profile
+    # Tweet with a YT video embed
+    'https://twitter.com/WoolieWoolz/status/1521220815454412800',
+    # Tweet with a steam store embed
+    'https://twitter.com/WindybeardGames/status/1521210934248755203',
+    # Tweet with 2 images
+    'https://twitter.com/FoundInGameMags/status/1521198879294828550?s=20',
+    'https://twitter.com/80Level/status/1521074521318567938',  # Tweet with 3 images
+    'https://twitter.com/80Level/status/1521051872051703810',  # Another with 3 images
+    # Tweet quoting another tweet
+    'https://twitter.com/PatStaresAt/status/1521200949259227137',
+    'https://twitter.com/KFILE/status/1516945903327891460',  # Tweet with video
+    'https://twitter.com/PhantomTheft/status/1521030364164243456',  # Spam tweet
 
     # Misc
     'https://stackoverflow.com/questions/55333327/extract-meta-keywords-in-python',
@@ -66,15 +78,16 @@ test_cases = [
     'https://open.catalyst.harvard.edu/wiki/display/eaglei/SWEET+Developers\'+Guide',
 
     # 4chan
-    'https://boards.4channel.org/g/thread/76759434', # thread
-    'https://i.4cdn.org/g/1594686780709.png', # image
-    'https://i.4cdn.org/wsg/1650936725126.webm', # webm (5 MB)
-    'https://i.4cdn.org/wsg/1651135239075.webm', # another webm
+    'https://boards.4channel.org/g/thread/76759434',  # thread
+    'https://i.4cdn.org/g/1594686780709.png',  # image
+    'https://i.4cdn.org/wsg/1650936725126.webm',  # webm (5 MB)
+    'https://i.4cdn.org/wsg/1651135239075.webm',  # another webm
 
     # Reddit
     'https://www.reddit.com/r/DocumentedFights/comments/uicibg/worst_seizure_youll_see_on_any_fight_video_not/',
 
 ]
+
 
 def run_tests():
     successes = 0
@@ -94,6 +107,7 @@ def run_tests():
                 progress.update(1)
 
     print("%d/%d successful tests" % (successes, len(test_cases)))
+
 
 if __name__ == '__main__':
     run_tests()

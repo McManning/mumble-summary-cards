@@ -8,11 +8,15 @@ import tweepy
 from src.util import pretty_datetime, url_to_data_uri
 
 # A bearer token is sufficient - we only need read-only access to public info
-TWITTER_API_BEARER_TOKEN = os.environ['TWITTER_BEARER_TOKEN']
+TWITTER_API_BEARER_TOKEN = None
+if "TWITTER_BEARER_TOKEN" in os.environ:
+    TWITTER_API_BEARER_TOKEN = os.environ['TWITTER_BEARER_TOKEN']
+
 
 def create_card_for_misc(meta: dict) -> str:
     """Handle non-tweets (by not presenting anything)"""
     return ''
+
 
 def create_cards_for_embedded_urls(entities: dict) -> str:
     """Render out inline embedded content such as YouTube links
@@ -51,13 +55,14 @@ def create_cards_for_embedded_urls(entities: dict) -> str:
                 </table>
             </a>
         '''.format(
-            url=url['unwound_url'], # t.co -> zpr.io -> youtube
+            url=url['unwound_url'],  # t.co -> zpr.io -> youtube
             description=url['description'],
             title=url['title'],
             thumbnail=url_to_data_uri(url['images'][0]['url'], 128)
         )
 
     return html
+
 
 def link_to_tweet(tweet_id: str) -> str:
     """Generate a usable link to a tweet ID.
@@ -66,6 +71,7 @@ def link_to_tweet(tweet_id: str) -> str:
     as it's a `status/{tweet_id}` style link.
     """
     return 'https://twitter.com/twitter/status/' + tweet_id
+
 
 def create_card_for_tweet(tweet_id: str, meta: dict) -> str:
     client = tweepy.Client(bearer_token=TWITTER_API_BEARER_TOKEN)
@@ -88,7 +94,7 @@ def create_card_for_tweet(tweet_id: str, meta: dict) -> str:
     if 'entities' in tweet:
         text = tweet.text[:-23]
 
-    text = re.sub(r'\n', '<br/>', text) # nl2br
+    text = re.sub(r'\n', '<br/>', text)  # nl2br
 
     metrics = tweet.public_metrics
 
@@ -110,16 +116,17 @@ def create_card_for_tweet(tweet_id: str, meta: dict) -> str:
             size = 128 if media_count > 1 else 256
 
             data_uri = None
-            if media.preview_image_url: # Video media
+            if media.preview_image_url:  # Video media
                 data_uri = url_to_data_uri(media.preview_image_url, size)
-            elif media.url: # Image media
+            elif media.url:  # Image media
                 data_uri = url_to_data_uri(media.url, size)
 
             url = media.url
             if not url:
                 url = link_to_tweet(tweet_id)
 
-            thumbnails.append('<a href="{}"><img src="{}" /></a>'.format(url, data_uri))
+            thumbnails.append(
+                '<a href="{}"><img src="{}" /></a>'.format(url, data_uri))
 
     # TODO: Embed posts that someone was replying to?
 
@@ -168,9 +175,10 @@ def create_card_for_tweet(tweet_id: str, meta: dict) -> str:
         quotes=metrics['quote_count']
     )
 
+
 def create_twitter_card(meta: dict) -> str:
     match = re.search(r'status/(?P<id>\d+)', meta['url'])
-    if match:
+    if match and TWITTER_API_BEARER_TOKEN:
         return create_card_for_tweet(match.group('id'), meta)
 
     return create_card_for_misc(meta)
