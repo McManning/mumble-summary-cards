@@ -87,7 +87,9 @@ def create_card_for_video_url(url: str) -> str:
 
 
 def create_card_for_unhandled_mime_type(mime: str, url: str) -> str:
-    return mime
+    """Content types we don't know how to render (JSON, PDFs, etc.)
+    get no card rather than echoing the raw mime type into chat."""
+    return ''
 
 
 def create_card_for_html(url: str) -> str:

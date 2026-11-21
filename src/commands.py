@@ -134,6 +134,11 @@ def any_url(msg: TextMessage, url: str):
     """
     # try:
     html = create_card(url)
+
+    # Nothing worth sending (e.g. unsupported content type)
+    if not html or not html.strip():
+        return
+
     for channel in msg.channels:
         msg.server.sendMessageChannel(channel, False, html)
     # except:
